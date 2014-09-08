@@ -22,10 +22,13 @@ luna: $(OBJ)
 
 %.o: %.c
 	@$(CC) -c $(CFLAGS) $< -o $@
-	@echo CC $@
+	@printf "\e[36mCC\e[90m %s\e[0m\n" $@
 
-test: test_runner
+test: test_runner test-parser
 	@./$<
+
+test-parser:
+	@sh test/parser.sh
 
 test_runner: $(TEST_OBJ)
 	$(CC) $^ -o $@
@@ -39,4 +42,4 @@ uninstall:
 clean:
 	rm -f luna test_runner $(OBJ) $(TEST_OBJ)
 
-.PHONY: clean test install uninstall
+.PHONY: clean test test-parser install uninstall

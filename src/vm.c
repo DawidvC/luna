@@ -6,102 +6,10 @@
 //
 
 #include "vm.h"
+#include "disasm.h"
 #include "object.h"
 #include "opcodes.h"
 #include "internal.h"
-
-/*
- * Register n.
- */
-
-#define R(n) registers[n]
-
-/*
- * Constant n.
- */
-
-#define K(n) vm->main->constants[(n) - 32]
-
-/*
- * Register or constant.
- */
-
-// TODO: MSB
-#define RK(n) \
-   ((n) < 32 ? R(n) : K(n))
-
-#include <stdio.h>
-
-void
-luna_dump(luna_vm_t *vm) {
-  luna_instruction_t *ip = vm->main->ip;
-  luna_instruction_t i;
-  int registers[32] = {0};
-
-  for (;;) {
-    switch (OP(i = *ip++)) {
-      // LOADK
-      case LUNA_OP_LOADK:
-        printf("loadk %d %d; %d\n", A(i), B(i), K(B(i)));
-        break;
-
-      // LOADB
-      case LUNA_OP_LOADB:
-        printf("loadb %d %d; %d\n", A(i), B(i), K(B(i)));
-        break;
-
-      // ADD
-      case LUNA_OP_ADD:
-        printf("add %d %d %d; %d %d\n", A(i), B(i), C(i), RK(B(i)), RK(C(i)));
-        break;
-
-      // SUB
-      case LUNA_OP_SUB:
-        printf("sub %d %d %d; %d %d\n", A(i), B(i), C(i), RK(B(i)), RK(C(i)));
-        break;
-
-      // DIV
-      case LUNA_OP_DIV:
-        printf("div %d %d %d; %d %d\n", A(i), B(i), C(i), RK(B(i)), RK(C(i)));
-        break;
-
-      // MUL
-      case LUNA_OP_MUL:
-        printf("mul %d %d %d; %d %d\n", A(i), B(i), C(i), RK(B(i)), RK(C(i)));
-        break;
-
-      // MOD
-      case LUNA_OP_MOD:
-        printf("mod %d %d %d; %d %d\n", A(i), B(i), C(i), RK(B(i)), RK(C(i)));
-        break;
-
-      // NEGATE
-      case LUNA_OP_NEGATE:
-
-        break;
-
-      // LT
-      case LUNA_OP_LT:
-        printf("lt %d %d; %d %d\n", B(i), C(i), RK(B(i)), RK(C(i)));
-        break;
-
-      // LTE
-      case LUNA_OP_LTE:
-        printf("lte %d %d; %d %d\n", B(i), C(i), RK(B(i)), RK(C(i)));
-        break;
-
-      // JMP
-      case LUNA_OP_JMP:
-        printf("jmp %d\n", B(i));
-        break;
-
-      // HALT
-      case LUNA_OP_HALT:
-        printf("halt\n");
-        return;
-    }
-  }
-}
 
 luna_object_t *
 luna_eval(luna_vm_t *vm) {

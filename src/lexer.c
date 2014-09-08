@@ -1,10 +1,10 @@
-
 //
 // lexer.c
 //
 // Copyright (c) 2013 TJ Holowaychuk <tj@vision-media.ca>
 //
 
+#include <math.h>
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
@@ -75,19 +75,6 @@ hex(const char c) {
 }
 
 /*
- * Scan newline.
- */
-
-static int
-scan_newline(luna_lexer_t *self) {
-  int curr = 0;
-  ++self->lineno;
-  while (accept(' ')) ++curr;
-  token(NEWLINE);
-  return 1;
-}
-
-/*
  * Scan identifier.
  */
 
@@ -103,20 +90,32 @@ scan_ident(luna_lexer_t *self, int c) {
   undo;
 
   buf[len++] = 0;
-  // TODO: refactor this lameness with length checks etc
-  if (0 == strcmp("if", buf)) return token(IF);
-  else if (0 == strcmp("else", buf)) return token(ELSE);
-  else if (0 == strcmp("def", buf)) return token(DEF);
-  else if (0 == strcmp("end", buf)) return token(END);
-  else if (0 == strcmp("let", buf)) return token(LET);
-  else if (0 == strcmp("unless", buf)) return token(UNLESS);
-  else if (0 == strcmp("while", buf)) return token(WHILE);
-  else if (0 == strcmp("until", buf)) return token(UNTIL);
-  else if (0 == strcmp("for", buf)) return token(FOR);
-  else if (0 == strcmp("ret", buf)) return token(RETURN);
-  else if (0 == strcmp("and", buf)) return token(OP_BIT_AND);
-  else if (0 == strcmp("not", buf)) return token(OP_LNOT);
-  self->tok.value.as_string = strdup(buf); // TODO: remove
+  switch (len-1) {
+    case 2:
+      if (0 == strcmp("if", buf)) return token(IF);
+      break;
+    case 3:
+      if (0 == strcmp("for", buf)) return token(FOR);
+      if (0 == strcmp("def", buf)) return token(DEF);
+      if (0 == strcmp("end", buf)) return token(END);
+      if (0 == strcmp("let", buf)) return token(LET);
+      if (0 == strcmp("and", buf)) return token(OP_BIT_AND);
+      if (0 == strcmp("not", buf)) return token(OP_LNOT);
+      break;
+    case 4:
+      if (0 == strcmp("else", buf)) return token(ELSE);
+      if (0 == strcmp("type", buf)) return token(TYPE);
+      break;
+    case 5:
+      if (0 == strcmp("while", buf)) return token(WHILE);
+      if (0 == strcmp("until", buf)) return token(UNTIL);
+      break;
+    default:
+      if (0 == strcmp("return", buf)) return token(RETURN);
+      if (0 == strcmp("unless", buf)) return token(UNLESS);
+  }
+
+  self->tok.value.as_string = strdup(buf);
   return 1;
 }
 
@@ -176,8 +175,12 @@ scan_string(luna_lexer_t *self, int quote) {
 
 static int
 scan_number(luna_lexer_t *self, int c) {
-  // TODO: exponential notation
-  int n = 0, type = 0;
+  int n = 0, type = 0, expo = 0, e;
+  int expo_type = 1;
+  /* expo_type:
+   * 1 -> '+'(default)
+   * 0 -> '-'
+   */
   token(INT);
 
   switch (c) {
@@ -210,24 +213,47 @@ scan_number(luna_lexer_t *self, int c) {
   do {
     if ('_' == c) continue;
     else if ('.' == c) goto scan_float;
+    else if ('e' == c || 'E' == c) goto scan_expo;
     n = n * 10 + c - '0';
-  } while (isdigit(c = next) || '_' == c || '.' == c);
+  } while (isdigit(c = next) || '_' == c || '.' == c || 'e' == c || 'E' == c);
   undo;
   self->tok.value.as_int = n;
+  return 1;
 
   // [0-9_]+
 
   scan_float: {
-    int e = 1;
+    e = 1;
     type = 1;
     token(FLOAT);
-    while (isdigit(c = next) || '_' == c) {
+    while (isdigit(c = next) || '_' == c || 'e' == c || 'E' == c) {
       if ('_' == c) continue;
+      else if ('e' == c || 'E' == c) goto scan_expo;
       n = n * 10 + c - '0';
       e *= 10;
     }
     undo;
     self->tok.value.as_float = (float) n / e;
+    return 1;
+  }
+
+  // [\+\-]?[0-9]+
+
+  scan_expo: {
+    while (isdigit(c = next) || '+' == c || '-' == c) {
+      if ('-' == c) {
+        expo_type = 0;
+        continue;
+      }
+      expo = expo * 10 + c - '0';
+    }
+
+    undo;
+    if (expo_type == 0) expo *= -1;
+    if (type == 0)
+      self->tok.value.as_int = n * pow(10, expo);
+    else
+      self->tok.value.as_float = ((float) n / e) * pow(10, expo);
   }
 
   return 1;
@@ -325,7 +351,9 @@ luna_scan(luna_lexer_t *self) {
       while ((c = next) != '\n' && c) ; undo;
       goto scan;
     case '\n':
-      return scan_newline(self);
+    case '\r':
+      ++self->lineno;
+      goto scan;
     case '"':
     case '\'':
       return scan_string(self, c);

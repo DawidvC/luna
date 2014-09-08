@@ -39,6 +39,7 @@
   n(ARRAY) \
   n(HASH) \
   n(FUNCTION) \
+  n(TYPE) \
   n(SLOT)
 
 /*
@@ -200,6 +201,16 @@ typedef struct {
 } luna_function_node_t;
 
 /*
+ * Luna type node.
+ */
+
+typedef struct {
+  luna_node_t base;
+  const char *name;
+  luna_hash_t *types;
+} luna_type_node_t;
+
+/*
  * Luna if stmt node.
  */
 
@@ -290,5 +301,8 @@ luna_return_node_new(luna_node_t *expr);
 
 luna_args_node_t *
 luna_args_node_new();
+
+luna_type_node_t *
+luna_type_node_new(const char *name);
 
 #endif /* __LUNA_AST__ */
